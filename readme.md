@@ -47,12 +47,12 @@ As a partner, the gift card API by **La Maison Simons** lets you :
 #### 1. Generate a key pair and a CSR file
 The partner (that's you !) must generate a public and private key pair and a certificate signing request (CSR). You can use any tool you want, such as [OpenSSL](https://github.com/openssl/openssl). Here is how you can generate a key pair and a CSR using OpenSSL:
 
-    openssl req -newkey rsa:2048 -keyout privatekey.key -out request.csr
+    openssl req -newkey rsa:2048 -nodes -keyout privatekey.key -out request.csr
 
 OpenSSL will ask you a few questions. Please make sure to input in the correct information based on the name and the location of your company.
 
 :warning: We recommend that you use a 2048-bit RSA key
-:warning: You may choose to protect your private key using a passphrase. However, please keep in mind that this may not be supported by your HTTP client and that this is entirely optional
+:warning: You may choose to protect your private key using a passphrase by remoding the -nodes argument. However, please keep in mind that this may not be supported by your HTTP client and that this is entirely optional
 :heavy_exclamation_mark: **Do not share your private key** You must never share your private key with anyone, including Simons. Make sure to protect this file appropriately. Anyone with access to your private key can make transactions on your behalf.
 
 
@@ -544,7 +544,7 @@ If the request response is successful with a 200 code, there will be no body for
 | 400  | AUTO_COMMIT_NOT_SUPPORTED            | Auto commit is not supported when a signature is required       |
 | 400  | BALANCE_MAX_REACHED                    | The partner's maximum balance has been reached                         |
 | 400  | CARD_ALREADY_ACTIVATED              | The card is already activated                                       |
-| 400  | CARD_DISABLE                       | The card is disabled                                                |
+| 400  | CARD_DISABLED                       | The card is disabled                                                |
 | 400  | CARD_USED_SINCE_ACTION_TO_ROLLBACK  | A purchase has been made on this card, transaction can't be reversed             |
 | 400  | INACTIVE_CARD                        | The card is inactive or not yet activated                           |
 | 400  | INVALID_SIGNATURE                    | The signature is invalid or expired                                 |
