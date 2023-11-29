@@ -486,7 +486,7 @@ In order to call the *cardBalance* feature you should use this URI:
 
 Make sure to replace **{pan}** with the gift card number that you are trying to activate.
 
-The https action must be a **POST**
+The https action must be a **GET**
 The https header must include:
 
     Accept: application/json 
