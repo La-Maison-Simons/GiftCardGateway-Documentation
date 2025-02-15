@@ -558,6 +558,7 @@ If the request response is successful with a 200 code, there will be no body for
 | 400  | TRANSACTION_NOT_COMMITTED            | The transaction must be committed                                   |
 | 400  | TRANSACTION_NOT_REVERSIBLE         | This type of transaction canot be reversed      |
 | 400  | VGC_BALANCE_MAX_REACHED                | The maximum amount for a card has been reached                      |
+| 400  | INVALID_AMOUNT  | The VGC activation amount is not greater than zero or the precision is more than cents |
 | 404  | CURRENCY_NOT_FOUND                 | This currency is not configured in your partner account                              |
 -----
 
