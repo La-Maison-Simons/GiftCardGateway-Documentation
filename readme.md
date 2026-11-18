@@ -19,6 +19,7 @@ APIs are the building blocks that allow interoperability for major business plat
 [How-to activate virtual gift card(s)](#how-to-activate-virtual-gift-cards)
 [How-to activate new physical gift card](#how-to-activate-new-physical-gift-card)
 [How-to reload a virtual gift card](#how-to-reload-a-virtual-gift-card)
+[How-to transfer a gift card balance](#how-to-transfer-a-gift-card-balance)
 [How-to commit a transaction](#how-to-commit-a-transaction)
 [How-to reverse a transaction](#how-to-reverse-a-transaction)
 [How-to get a card balance](#how-to-get-a-card-balance)
@@ -331,6 +332,82 @@ Follow the [How-to sign and commit a transaction](#how-to-commit-a-transaction-w
 #### Auto-commit
 If it's agreed with *La Maison Simons* that you can commit transaction without signing them, you can use the auto-commit feature and receive the generated card(s) information in a single call. Follow [How-to auto-commit a transaction](#how-to-auto-commit-a-transaction) guidelines to implement this functionality.
 
+## How-to transfer a gift card balance
+
+A transfer moves the full balance to another card of the same type (VGC to VGC or PGC to PGC). The API determines the amount and currency from the source card; do not send either in the request. After a successful commit, the source card has a zero balance and is disabled. A committed transfer cannot be [reversed](#how-to-reverse-a-transaction).
+
+### Prerequisites
+
+- The source card must belong to your partner account, be active, have a positive balance, and have no successful redemptions.
+- **VGC:** Your account needs the `TransferVGC` permission and a valid VGC agreement that allows issuing one replacement card for the source balance. The API generates the replacement when the transfer is committed.
+- **PGC:** Your account needs the `TransferPGC` permission. The destination must be a different physical card that belongs to your partner account. It must be active, reloadable, in the same currency as the source, and unused since activation with a zero balance.
+
+### Request
+
+Send a **POST** with `Accept: application/json` and `Content-Type: application/json`. Replace `{pan}` with the **source** card number.
+
+**Virtual gift card:** `/api/v1/transaction/vgc/{pan}/transfer`
+
+```json
+{
+  "autoCommit": false
+}
+```
+
+**Physical gift card:** `/api/v1/transaction/pgc/{pan}/transfer`
+
+```json
+{
+  "destinationPan": "0000000000000002",
+  "autoCommit": false
+}
+```
+
+`destinationPan` is required for a PGC transfer. No card PIN is required in either request.
+
+### Commit your transfer
+
+- **Manual commit (default):** If `autoCommit` is omitted or `false`, the request creates a pending transaction without moving any funds. Use the returned `noTransaction` in `POST /api/v1/transaction/{txn}/commit`. If your account requires a signature, sign the returned `transactionInfo.txnHash` as described in [How-to commit a transaction](#how-to-commit-a-transaction).
+- **Auto-commit:** If your account does not require signatures, set `autoCommit` to `true` to create and commit the transfer in one request.
+
+The API revalidates the transfer at commit. If the source balance has changed since the transaction was created, the commit is rejected with `TRANSFER_AMOUNT_CHANGED`. Create a new transfer request if you still want to move the updated balance.
+
+### Response
+
+Successful requests return **HTTP 200 OK**. The response includes the transaction ID, creation date, and `transactionInfo` with the amount, currency, and `txnHash`. A pending VGC response does not contain usable replacement card credentials. The new card's `pan` and `pin` are returned in `transactionInfo` after a successful manual commit or auto-commit. PGC responses do not include a PAN or PIN.
+
+**Committed VGC transfer:**
+
+```json
+{
+  "noTransaction": "e61e0f7b-079e-4f51-a419-e5d5ded798ba",
+  "createdDate": "2026-11-18T14:30:00",
+  "transactionInfo": {
+    "amount": 25.00,
+    "currency": "CAD",
+    "txnHash": "e61e0f7b-079e-4f51-a419-e5d5ded798ba-25.00",
+    "pan": "0000000000000003",
+    "pin": "0000"
+  }
+}
+```
+
+**Committed PGC transfer:**
+
+```json
+{
+  "noTransaction": "2afc9076-f044-4b67-b119-4f56139b8f51",
+  "createdDate": "2026-11-18T14:32:00",
+  "transactionInfo": {
+    "amount": 25.00,
+    "currency": "CAD",
+    "txnHash": "2afc9076-f044-4b67-b119-4f56139b8f51-25.00"
+  }
+}
+```
+
+See [Wiki Bad Request](#wiki-bad-request) for error codes.
+
 ## How-to commit a transaction
 
 Each transaction needs to be [digitally signed](https://en.wikipedia.org/wiki/Digital_signature) in order to be committed. This ensures that the party requesting the transaction cannot repudiate a transaction later.
@@ -386,12 +463,13 @@ This functionnality is available for these requests:
  - [Activate virtual gift card(s) (*activateVGC*)](#how-to-activate-virtual-gift-cards)
  - [Activate a physical gift card (*activatePGC*)](#how-to-activate-new-physical-gift-card)
  - [Reload a virtual gift Card (*reloadVGC*)](#how-to-reload-a-virtual-gift-card)
+ - [Transfer a gift card balance (*transferVGC* or *transferPGC*)](#how-to-transfer-a-gift-card-balance)
 
 **In the call Body**, set the following value:
 
     "autoCommit": true
 
-Instead of getting the *activateVGC*, *activatePGC* or *reloadVGC* usual response body, you will get the following response body.
+Auto-commit returns the same response as a successful manual commit. See the examples below or the [transfer responses](#how-to-transfer-a-gift-card-balance).
 
 ### Response Body
 Example of a successful request body response for each transaction once it is commited: 
@@ -546,12 +624,16 @@ If the request response is successful with a 200 code, there will be no body for
 | 400  | CARD_ALREADY_ACTIVATED              | The card is already activated                                       |
 | 400  | CARD_DISABLED                       | The card is disabled                                                |
 | 400  | CARD_USED_SINCE_ACTION_TO_ROLLBACK  | A purchase has been made on this card, transaction can't be reversed             |
+| 400  | DESTINATION_CARD_NOT_BLANK           | The destination card has a nonzero balance or has been used since activation |
 | 400  | INACTIVE_CARD                        | The card is inactive or not yet activated                           |
+| 400  | INCOMPATIBLE_CARD_TYPE               | The card type does not match the transfer endpoint                  |
 | 400  | INVALID_SIGNATURE                    | The signature is invalid or expired                                 |
 | 400  | INVENTORY_LIMIT_MAX_REACHED            | The maximum number of cards has been reached for this agreement   |
 | 400  | NO_VALID_AGREEMENT                  | No matching agreement is found                                      |
 | 400  | SIGNATURE_REQUIRED                  | A signature is required                                           |
+| 400  | SOURCE_CARD_REDEEMED                | The source card has already been used for a successful redemption |
 | 400  | TIME_LIMIT_ROLLBACK_REACHED            | The age of the transaction exceeded the time limit for a rollback |
+| 400  | TRANSFER_AMOUNT_CHANGED             | The source balance changed after the transfer was created           |
 | 400  | TRANSACTION_ALREADY_COMMITTED        | The transaction is already committed                                |
 | 400  | TRANSACTION_ALREADY_REVERSED          | The transaction is already reversed                                 |
 | 400  | TRANSACTION_NOT_COMMITABLE          | The transaction is not committable                                  |
